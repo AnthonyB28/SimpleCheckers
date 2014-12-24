@@ -85,14 +85,15 @@ void Board::PlayerTurn()
 				if (*it == inputMovePair)
 				{
 					// Valid move input from user.
-					if (it->capture == NO_CAPTURE && captureMoves.size() > 0)
+					bool capture = it->capture != NO_CAPTURE ? true : false;
+					if (!capture && captureMoves.size() > 0)
 					{
 						std::cout << "There are capture moves available.\n";
 					}
 					else
 					{
 						m_GameBoard[it->from] = Pieces::EMPTY;
-						if (it->capture != NO_CAPTURE)
+						if (capture)
 						{
 							m_GameBoard[it->capture] = Pieces::EMPTY;
 							CapturePiece(Pieces::RED);
@@ -100,10 +101,10 @@ void Board::PlayerTurn()
 						m_GameBoard[it->to] = Pieces::WHITE;
 						std::cout << "Result of your move: \n";
 						Display();
-						if (CanAttack(it->to, Pieces::WHITE))
+						if (capture && CanAttack(it->to, Pieces::WHITE))
 						{
 							// Additional moves available! Continue the loop.
-							std::cout << "Please enter next jump move.... \n";
+							std::cout << "You have at least 1 extra jump. Please enter next jump move.... \n";
 							multiMove = true;
 						}
 						else
@@ -234,29 +235,35 @@ std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureO
 				}
 
 				// Capture jumps
-				// Jump over the up right diag
-				int diagJumpUpRight = diagUpRight - 7;
 				if (position != 7 && position != 23 && position != 39 && position != 55)
 				{
-					if (diagJumpUpRight >= 0 && diagJumpUpRight <= 63)
+					// Jump over the up right diag
+					if (diagUpRight != 7 && diagUpRight != 23 && diagUpRight != 39 && diagUpRight != 55)
 					{
-						if (((color == Pieces::WHITE && m_GameBoard.at(diagUpRight) == Pieces::RED)
-							|| (color == Pieces::RED && m_GameBoard.at(diagUpRight) == Pieces::WHITE))
-							&& m_GameBoard.at(diagJumpUpRight) == Pieces::EMPTY)
+						int diagJumpUpRight = diagUpRight - 7;
+						if (diagJumpUpRight >= 0 && diagJumpUpRight <= 63)
 						{
-							moveList.push_back(MovePair(position, diagJumpUpRight, diagUpRight));
+							if (((color == Pieces::WHITE && m_GameBoard.at(diagUpRight) == Pieces::RED)
+								|| (color == Pieces::RED && m_GameBoard.at(diagUpRight) == Pieces::WHITE))
+								&& m_GameBoard.at(diagJumpUpRight) == Pieces::EMPTY)
+							{
+								moveList.push_back(MovePair(position, diagJumpUpRight, diagUpRight));
+							}
 						}
 					}
 
 					// Jump over the up left diag
-					int diagJumpDownRight = diagDownRight + 9;
-					if (diagJumpDownRight >= 0 && diagJumpDownRight <= 63)
+					if (diagDownRight != 7 && diagDownRight != 23 && diagDownRight != 39 && diagDownRight != 55)
 					{
-						if (((color == Pieces::WHITE && m_GameBoard.at(diagDownRight) == Pieces::RED)
-							|| (color == Pieces::RED && m_GameBoard.at(diagDownRight) == Pieces::WHITE))
-							&& m_GameBoard.at(diagJumpDownRight) == Pieces::EMPTY)
+						int diagJumpDownRight = diagDownRight + 9;
+						if (diagJumpDownRight >= 0 && diagJumpDownRight <= 63)
 						{
-							moveList.push_back(MovePair(position, diagJumpDownRight, diagDownRight));
+							if (((color == Pieces::WHITE && m_GameBoard.at(diagDownRight) == Pieces::RED)
+								|| (color == Pieces::RED && m_GameBoard.at(diagDownRight) == Pieces::WHITE))
+								&& m_GameBoard.at(diagJumpDownRight) == Pieces::EMPTY)
+							{
+								moveList.push_back(MovePair(position, diagJumpDownRight, diagDownRight));
+							}
 						}
 					}
 				}
@@ -264,26 +271,32 @@ std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureO
 				if (position != 8 && position != 24 && position != 40 && position != 56)
 				{
 					// Jump over left up diag
-					int diagJumpUpLeft = diagUpLeft - 9;
-					if (diagJumpUpLeft >= 0 && diagJumpUpLeft <= 63)
+					if (diagUpLeft != 8 && diagUpLeft != 24 && diagUpLeft != 40 && diagUpLeft != 56)
 					{
-						if (((color == Pieces::WHITE && m_GameBoard.at(diagUpLeft) == Pieces::RED)
-							|| (color == Pieces::RED && m_GameBoard.at(diagUpLeft) == Pieces::WHITE))
-							&& m_GameBoard.at(diagJumpUpLeft) == Pieces::EMPTY)
+						int diagJumpUpLeft = diagUpLeft - 9;
+						if (diagJumpUpLeft >= 0 && diagJumpUpLeft <= 63)
 						{
-							moveList.push_back(MovePair(position, diagJumpUpLeft, diagUpLeft));
+							if (((color == Pieces::WHITE && m_GameBoard.at(diagUpLeft) == Pieces::RED)
+								|| (color == Pieces::RED && m_GameBoard.at(diagUpLeft) == Pieces::WHITE))
+								&& m_GameBoard.at(diagJumpUpLeft) == Pieces::EMPTY)
+							{
+								moveList.push_back(MovePair(position, diagJumpUpLeft, diagUpLeft));
+							}
 						}
 					}
 
 					// Jump over the up left diag
-					int diagJumpDownLeft = diagDownLeft + 7;
-					if (diagJumpDownLeft >= 0 && diagJumpDownLeft <= 63)
+					if (diagDownLeft != 8 && diagDownLeft != 24 && diagDownLeft != 40 && diagDownLeft != 56)
 					{
-						if (((color == Pieces::WHITE && m_GameBoard.at(diagDownLeft) == Pieces::RED)
-							|| (color == Pieces::RED && m_GameBoard.at(diagDownLeft) == Pieces::WHITE))
-							&& m_GameBoard.at(diagJumpDownLeft) == Pieces::EMPTY)
+						int diagJumpDownLeft = diagDownLeft + 7;
+						if (diagJumpDownLeft >= 0 && diagJumpDownLeft <= 63)
 						{
-							moveList.push_back(MovePair(position, diagJumpDownLeft, diagDownLeft));
+							if (((color == Pieces::WHITE && m_GameBoard.at(diagDownLeft) == Pieces::RED)
+								|| (color == Pieces::RED && m_GameBoard.at(diagDownLeft) == Pieces::WHITE))
+								&& m_GameBoard.at(diagJumpDownLeft) == Pieces::EMPTY)
+							{
+								moveList.push_back(MovePair(position, diagJumpDownLeft, diagDownLeft));
+							}
 						}
 					}
 				}
@@ -314,7 +327,7 @@ MovePair Board::GetMovePairFromInput(std::string const & move)
 		if (piecePositionFrom >= 1 && piecePositionFrom <= 32 &&
 			piecePositionTo >= 1 && piecePositionTo <= 32)
 		{
-			std::cout << "From: " << piecePositionFrom << " To: " << piecePositionTo << "\n";
+			//std::cout << "From: " << piecePositionFrom << " To: " << piecePositionTo << "\n";
 			return MovePair ( GetPositionFromMove(piecePositionFrom), GetPositionFromMove(piecePositionTo), false );
 		}
 		else
