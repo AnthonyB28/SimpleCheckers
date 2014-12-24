@@ -1,3 +1,8 @@
+/*
+	Representation of a checker move with from and to positions.
+	If a capture is available (not -1), it is position of piece to erase.
+*/
+
 struct MovePair
 {
 public:
@@ -7,13 +12,11 @@ public:
 		, capture(capture)
 	{}
 
-	// Returns if the left captures something
 	inline bool operator< (MovePair const & right)
 	{
 		return capture > right.capture;
 	}
 
-	// Returns if from and to are the same
 	inline bool operator== (MovePair const & right)
 	{
 		return (from == right.from) && (to == right.to);

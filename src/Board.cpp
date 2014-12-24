@@ -47,20 +47,50 @@ Board::Board()
 
 Board::~Board()
 {
-
+	// Nothing explicitly allocated, doesn't need cleanup
 }
 
 void Board::BeginGame()
 {
+	std::cout << "Input is Red/Black top, white bottom. You are WHITE.\nhttp://www.bobnewell.net/nucleus/checkers.php?itemid=289 \n\n";
 	Display();
 	while (!m_GameOver)
 	{
 		PlayerTurn();
 		AITurn();
 	}
+	std::cout << "Game over! Thanks for playing.\n";
+}
 
-	std::cout << "Game over!\n";
-	
+void Board::Display()
+{
+	std::string boardDisplay; //TODO: faster implementation of strings
+	int counter = 1;
+	for (std::vector<Pieces>::const_iterator it = m_GameBoard.cbegin(); it != m_GameBoard.cend(); ++it)
+	{
+		if (*it == Pieces::EMPTY)
+		{
+			boardDisplay += ".";
+		}
+		else if (*it == Pieces::RED)
+		{
+			boardDisplay += "R";
+		}
+		else
+		{
+			boardDisplay += "W";
+		}
+
+		if (counter % 8 == 0)
+		{
+			boardDisplay += "\n";
+		}
+		++counter;
+	}
+	std::cout << boardDisplay;
+	std::cout << "Press enter to continue";
+	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	std::cout << "\n\n";
 }
 
 void Board::PlayerTurn()
@@ -227,6 +257,54 @@ void Board::CapturePiece(Pieces const color)
 	}
 }
 
+MovePair Board::GetMovePairFromInput(std::string const & move)
+{
+	// Convert input syntax to useable one.
+	// Split on '-'
+	std::vector<std::string> fromToSyntax;
+	std::stringstream ss(move);
+	std::string item;
+	while (std::getline(ss, item, '-')) {
+		fromToSyntax.push_back(item);
+	}
+	
+	if (fromToSyntax.size() == 2)
+	{
+		int piecePositionFrom;
+		int piecePositionTo;
+		std::istringstream(fromToSyntax.at(0)) >> piecePositionFrom;
+		std::istringstream(fromToSyntax.at(1)) >> piecePositionTo;
+		if (piecePositionFrom >= 1 && piecePositionFrom <= 32 &&
+			piecePositionTo >= 1 && piecePositionTo <= 32)
+		{
+			//std::cout << "From: " << piecePositionFrom << " To: " << piecePositionTo << "\n";
+			return MovePair ( GetPositionFromCheckersMove(piecePositionFrom), GetPositionFromCheckersMove(piecePositionTo), false );
+		}
+		else
+		{
+			std::cout << "Numbers too big or too small. Ranges from 1 to 32.\n";
+		}
+	}
+	else
+	{
+		std::cout << "Invalid input, don't use spaces.\n";
+	}
+
+	return MovePair(-1,-1, false); // TODO make an invalid movepair recognizeable instead of magic nums
+}
+
+int Board::GetPositionFromCheckersMove(int const checkersMove) const
+{
+	// http://www.bobnewell.net/nucleus/checkers.php?itemid=289
+	// Black top and white bottom notation.
+	// If row is even, then only index off one.
+	// If row is odd, index off two.
+	int row = (checkersMove * 2 - 1) / 8;
+	int inBoard = ((row & 1) == 1) ? checkersMove * 2 - 2 : checkersMove * 2 - 1;
+	return inBoard;
+}
+
+
 std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureOnly)
 {
 	std::vector<MovePair> moveList;
@@ -263,7 +341,7 @@ std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureO
 						{
 							moveList.push_back(MovePair(position, diagUpLeft, NO_CAPTURE));
 						}
-						if (diagDownLeft >= 0 && diagDownLeft <= 63 
+						if (diagDownLeft >= 0 && diagDownLeft <= 63
 							&& m_GameBoard.at(diagDownLeft) == Pieces::EMPTY)
 						{
 							moveList.push_back(MovePair(position, diagDownLeft, NO_CAPTURE));
@@ -342,80 +420,4 @@ std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureO
 	}
 
 	return moveList;
-}
-
-MovePair Board::GetMovePairFromInput(std::string const & move)
-{
-	// Convert input syntax to useable one.
-	// Split on '-'
-	std::vector<std::string> fromToSyntax;
-	std::stringstream ss(move);
-	std::string item;
-	while (std::getline(ss, item, '-')) {
-		fromToSyntax.push_back(item);
-	}
-	
-	if (fromToSyntax.size() == 2)
-	{
-		int piecePositionFrom;
-		int piecePositionTo;
-		std::istringstream(fromToSyntax.at(0)) >> piecePositionFrom;
-		std::istringstream(fromToSyntax.at(1)) >> piecePositionTo;
-		if (piecePositionFrom >= 1 && piecePositionFrom <= 32 &&
-			piecePositionTo >= 1 && piecePositionTo <= 32)
-		{
-			//std::cout << "From: " << piecePositionFrom << " To: " << piecePositionTo << "\n";
-			return MovePair ( GetPositionFromMove(piecePositionFrom), GetPositionFromMove(piecePositionTo), false );
-		}
-		else
-		{
-			std::cout << "Numbers too big or too small. Ranges from 1 to 32.\n";
-		}
-	}
-	else
-	{
-		std::cout << "Invalid input, don't use spaces.\n";
-	}
-
-	return MovePair(-1,-1, false); // TODO make an invalid movepair recognizeable instead of magic nums
-}
-
-int Board::GetPositionFromMove(int const checkersMove) const
-{
-	// If move is even, then only index off one.
-	// If move is odd, index off two.
-	int row = (checkersMove * 2 - 1) / 8;
-	int inBoard = ((row & 1) == 1) ? checkersMove * 2 - 2 : checkersMove * 2 - 1;
-	return inBoard;
-}
-
-void Board::Display()
-{
-	std::string boardDisplay; //TODO: faster implementation of strings
-	int counter = 1;
-	for (std::vector<Pieces>::const_iterator it = m_GameBoard.cbegin(); it != m_GameBoard.cend(); ++it)
-	{
-		if (*it == Pieces::EMPTY)
-		{
-			boardDisplay += ".";
-		}
-		else if (*it == Pieces::RED)
-		{
-			boardDisplay += "R";
-		}
-		else
-		{
-			boardDisplay += "W";
-		}
-
-		if (counter % 8 == 0)
-		{
-			boardDisplay += "\n";
-		}
-		++counter;
-	}
-	std::cout << boardDisplay;
-	std::cout << "Press enter to continue";
-	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-	std::cout << "\n";
 }
