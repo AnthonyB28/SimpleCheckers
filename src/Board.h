@@ -21,15 +21,13 @@ private:
 	void AITurn(); // AI makes move
 	void PlayerTurn(); // Take player input for turn.
 	void DisplayGameOver(); // Displays the end game result
-	MovePair GetMovePair(std::string const & move);
-	bool IsValidMove(MovePair const movePair);
+	MovePair GetMovePairFromInput(std::string const & move);
 	int GetPositionFromMove(int const move) const;
 	void CapturePiece(Pieces const color);
-
+	bool CanAttack(int const position, Pieces const color);
 	std::vector<MovePair> GetAvailableMoves(Pieces const color, bool captureOnly);
 
 	std::vector<Pieces> m_GameBoard;
-	int m_PlayerCapture;
 	int m_RedPieces;
 	int m_WhitePieces;
 	bool m_GameOver;

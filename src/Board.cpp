@@ -9,7 +9,6 @@
 
 Board::Board()
 	: m_GameBoard()
-	, m_PlayerCapture(NO_CAPTURE)
 	, m_RedPieces(12)
 	, m_WhitePieces(12)
 	, m_GameOver(false)
@@ -64,33 +63,82 @@ void Board::BeginGame()
 void Board::PlayerTurn()
 {
 	bool madeMove = false;
+	bool multiMove = false;
 	// Input loop
 	while (!madeMove)
 	{
-		std::string inputMove;
+		std::string playerInput;
 		std::cout << "Input your white move (from-to format, eg 21-17)\n";
-		std::cin >> inputMove;
-		MovePair movePair = GetMovePair(inputMove);
-
-		// If input is valid, check the validity of the move and if captures are made...
-		if (IsValidMove(movePair))
+		std::cin >> playerInput;
+		// Get valid moves & search them for player input. If not there, invalid move!
+		MovePair inputMovePair = GetMovePairFromInput(playerInput);
+		std::vector<MovePair> movesToMake = GetAvailableMoves(Pieces::WHITE, false);
+		std::vector<MovePair> captureMoves;
+		if (movesToMake.size() != 0)
 		{
-			// TODO move generation should return a list of moves we could just compare against
-			// TODO make sure the player HAS To take captures....
-			m_GameBoard[movePair.from] = Pieces::EMPTY;
-			if (m_PlayerCapture != NO_CAPTURE)
+			for (std::vector<MovePair>::iterator it = movesToMake.begin(); it != movesToMake.end(); ++it)
 			{
-				m_GameBoard[m_PlayerCapture] = Pieces::EMPTY;
-				CapturePiece(Pieces::RED);
-				m_PlayerCapture = NO_CAPTURE; // Reset flag, TODO too manual & needs improvement
+				if (it->capture != NO_CAPTURE)
+				{
+					captureMoves.push_back(*it);
+				}
+				if (*it == inputMovePair)
+				{
+					// Valid move input from user.
+					if (it->capture == NO_CAPTURE && captureMoves.size() > 0)
+					{
+						std::cout << "There are capture moves available.\n";
+					}
+					else
+					{
+						m_GameBoard[it->from] = Pieces::EMPTY;
+						if (it->capture != NO_CAPTURE)
+						{
+							m_GameBoard[it->capture] = Pieces::EMPTY;
+							CapturePiece(Pieces::RED);
+						}
+						m_GameBoard[it->to] = Pieces::WHITE;
+						std::cout << "Result of your move: \n";
+						Display();
+						if (CanAttack(it->to, Pieces::WHITE))
+						{
+							// Additional moves available! Continue the loop.
+							std::cout << "Please enter next jump move.... \n";
+							multiMove = true;
+						}
+						else
+						{
+							madeMove = true;
+						}
+					}
+					break;
+				}
 			}
-			m_GameBoard[movePair.to] = Pieces::WHITE;
-			// TODO check to make sure player cannot make more jumps, then ask to make more jumps if so
-			madeMove = true;
-			std::cout << "Result of your move: \n";
-			Display();
+		}
+
+		if (!madeMove && !multiMove)
+		{
+			std::cout << "Invalid move. Please try again.\n";
 		}
 	}
+}
+
+bool Board::CanAttack(int const position, Pieces const color)
+{
+	std::vector<MovePair> captureMoves = GetAvailableMoves(color, true);
+	if (captureMoves.size() > 0)
+	{
+		for (std::vector<MovePair>::const_iterator it = captureMoves.cbegin(); it != captureMoves.cend(); ++it)
+		{
+			// If the starting position is the input, then this piece can capture!!!
+			if (it->from == position)
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
 }
 
 void Board::AITurn()
@@ -98,17 +146,25 @@ void Board::AITurn()
 	if (!m_GameOver)
 	{
 		std::vector<MovePair> movesToMake = GetAvailableMoves(Pieces::RED, false);
-		int randMove = rand() % movesToMake.size();
-		MovePair moveToMake = movesToMake.at(randMove);
-		m_GameBoard[moveToMake.from] = Pieces::EMPTY;
-		if (moveToMake.capture != NO_CAPTURE)
+		if (movesToMake.size() != 0)
 		{
-			m_GameBoard[moveToMake.capture] = Pieces::EMPTY;
-			CapturePiece(Pieces::WHITE);
+			std::sort(movesToMake.begin(), movesToMake.end());
+			MovePair moveToMake = movesToMake.at(0);
+			m_GameBoard[moveToMake.from] = Pieces::EMPTY;
+			if (moveToMake.capture != NO_CAPTURE)
+			{
+				m_GameBoard[moveToMake.capture] = Pieces::EMPTY;
+				CapturePiece(Pieces::WHITE);
+			}
+			m_GameBoard[moveToMake.to] = Pieces::RED;
+			std::cout << "AI Red turn:\n";
+			Display();
 		}
-		m_GameBoard[moveToMake.to] = Pieces::RED;
-		std::cout << "AI Red turn:\n";
-		Display();
+		else
+		{
+			std::cout << "Game over";
+			m_GameOver = true;
+		}
 	}
 }
 
@@ -162,7 +218,7 @@ std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureO
 							moveList.push_back(MovePair(position, diagDownRight, NO_CAPTURE));
 						}
 					}
-					if (position != 23 && position != 39 && position != 55)
+					if (position != 8 && position != 24 && position != 40 && position != 56)
 					{
 						if (diagUpLeft >= 0 && diagUpLeft <= 63
 							&& m_GameBoard.at(diagUpLeft) == Pieces::EMPTY)
@@ -180,45 +236,55 @@ std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureO
 				// Capture jumps
 				// Jump over the up right diag
 				int diagJumpUpRight = diagUpRight - 7;
-				if (diagJumpUpRight >= 0 && diagJumpUpRight <= 63)
+				if (position != 7 && position != 23 && position != 39 && position != 55)
 				{
-					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpUpRight) == Pieces::RED)
-						|| (color == Pieces::RED && m_GameBoard.at(diagJumpUpRight) == Pieces::WHITE))
+					if (diagJumpUpRight >= 0 && diagJumpUpRight <= 63)
 					{
-						moveList.push_back(MovePair(position, diagJumpUpRight, diagUpRight));
+						if (((color == Pieces::WHITE && m_GameBoard.at(diagUpRight) == Pieces::RED)
+							|| (color == Pieces::RED && m_GameBoard.at(diagUpRight) == Pieces::WHITE))
+							&& m_GameBoard.at(diagJumpUpRight) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagJumpUpRight, diagUpRight));
+						}
+					}
+
+					// Jump over the up left diag
+					int diagJumpDownRight = diagDownRight + 9;
+					if (diagJumpDownRight >= 0 && diagJumpDownRight <= 63)
+					{
+						if (((color == Pieces::WHITE && m_GameBoard.at(diagDownRight) == Pieces::RED)
+							|| (color == Pieces::RED && m_GameBoard.at(diagDownRight) == Pieces::WHITE))
+							&& m_GameBoard.at(diagJumpDownRight) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagJumpDownRight, diagDownRight));
+						}
 					}
 				}
 
-				// Jump over left up diag
-				int diagJumpUpLeft = diagUpLeft - 9;
-				if (diagJumpUpLeft >= 0 && diagJumpUpLeft <= 63)
+				if (position != 8 && position != 24 && position != 40 && position != 56)
 				{
-					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpUpLeft) == Pieces::RED)
-						|| (color == Pieces::RED && m_GameBoard.at(diagJumpUpLeft) == Pieces::WHITE))
+					// Jump over left up diag
+					int diagJumpUpLeft = diagUpLeft - 9;
+					if (diagJumpUpLeft >= 0 && diagJumpUpLeft <= 63)
 					{
-						moveList.push_back(MovePair(position, diagJumpUpLeft, diagUpLeft));
+						if (((color == Pieces::WHITE && m_GameBoard.at(diagUpLeft) == Pieces::RED)
+							|| (color == Pieces::RED && m_GameBoard.at(diagUpLeft) == Pieces::WHITE))
+							&& m_GameBoard.at(diagJumpUpLeft) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagJumpUpLeft, diagUpLeft));
+						}
 					}
-				}
 
-				// Jump over the up left diag
-				int diagJumpDownLeft = diagDownLeft + 7;
-				if (diagJumpDownLeft >= 0 && diagJumpDownLeft <= 63)
-				{
-					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpDownLeft) == Pieces::RED)
-						|| (color == Pieces::RED && m_GameBoard.at(diagJumpDownLeft) == Pieces::WHITE))
+					// Jump over the up left diag
+					int diagJumpDownLeft = diagDownLeft + 7;
+					if (diagJumpDownLeft >= 0 && diagJumpDownLeft <= 63)
 					{
-						moveList.push_back(MovePair(position, diagJumpDownLeft, diagDownLeft));
-					}
-				}
-		
-				// Jump over the up left diag
-				int diagJumpDownRight = diagDownRight + 9;
-				if (diagJumpDownRight >= 0 && diagJumpDownRight <= 63)
-				{
-					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpDownRight) == Pieces::RED)
-						|| (color == Pieces::RED && m_GameBoard.at(diagJumpDownRight) == Pieces::WHITE))
-					{
-						moveList.push_back(MovePair(position, diagJumpDownRight, diagDownRight));
+						if (((color == Pieces::WHITE && m_GameBoard.at(diagDownLeft) == Pieces::RED)
+							|| (color == Pieces::RED && m_GameBoard.at(diagDownLeft) == Pieces::WHITE))
+							&& m_GameBoard.at(diagJumpDownLeft) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagJumpDownLeft, diagDownLeft));
+						}
 					}
 				}
 			}
@@ -228,7 +294,7 @@ std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureO
 	return moveList;
 }
 
-MovePair Board::GetMovePair(std::string const & move)
+MovePair Board::GetMovePairFromInput(std::string const & move)
 {
 	// Convert input syntax to useable one.
 	// Split on '-'
@@ -262,91 +328,6 @@ MovePair Board::GetMovePair(std::string const & move)
 	}
 
 	return MovePair(-1,-1, false); // TODO make an invalid movepair recognizeable instead of magic nums
-}
-
-bool Board::IsValidMove(MovePair const movePair)
-{
-	if (movePair.from != -1 && movePair.to != -1)
-	{
-		int from = movePair.from;
-		if (m_GameBoard.at(from) == Pieces::WHITE)
-		{
-			int to = movePair.to;
-
-			// 3 things to check for here....
-			// If the player is making a normal adjacent move
-			// If the player is capturing a piece
-			// If the player is making a string of jumps.... Maybe discourage this and make it auto?
-
-			int diagUpRight = from - 7;
-			int diagUpLeft = from - 9;
-			int diagDownLeft = from + 7;
-			int diagDownRight = from + 9;
-			if (m_GameBoard.at(to) == Pieces::EMPTY)
-			{
-				// Adjacent move
-				if (to == diagUpRight || to == diagUpLeft || to == diagDownLeft || to == diagDownRight)
-				{
-					if (m_GameBoard.at(to) == Pieces::EMPTY)
-					{
-						std::cout << "Valid move.\n";
-						return true;
-					}
-				}
-
-				// Capture jumps
-				// Jump over the up right diag
-				else if (to == diagUpRight - 7)
-				{
-					if (m_GameBoard.at(diagUpRight) == Pieces::RED)
-					{
-						m_PlayerCapture = diagUpRight;
-						return true;
-					}
-				}
-				// Jump over the up left diag
-				else if (to == diagUpLeft - 9)
-				{
-					if (m_GameBoard.at(diagUpLeft) == Pieces::RED)
-					{
-						m_PlayerCapture = diagUpLeft;
-						return true;
-					}
-				}
-				// Jump over the up left diag
-				else if (to == diagDownLeft + 7)
-				{
-					if (m_GameBoard.at(diagDownLeft) == Pieces::RED)
-					{
-						m_PlayerCapture = diagDownLeft;
-						return true;
-					}
-				}
-				// Jump over the up left diag
-				else if (to == diagDownRight + 9)
-				{
-					if (m_GameBoard.at(diagUpLeft) == Pieces::RED)
-					{
-						m_PlayerCapture = diagUpLeft;
-						return true;
-					}
-				}
-			}
-			else
-			{
-				std::cout << "Not an empty destination.\n";
-			}
-			
-		}
-		else
-		{
-			std::cout << "Not a white piece.\n";
-		}
-	}
-
-	std::cout << "Invalid move. Try again.\n";
-	m_PlayerCapture = NO_CAPTURE;
-	return false;
 }
 
 int Board::GetPositionFromMove(int const checkersMove) const
