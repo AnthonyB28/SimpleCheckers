@@ -1,3 +1,4 @@
+#include "MovePair.h"
 #include <vector>
 
 class Board
@@ -20,9 +21,12 @@ private:
 	void AITurn(); // AI makes move
 	void PlayerTurn(); // Take player input for turn.
 	void DisplayGameOver(); // Displays the end game result
-	std::vector<int> GetMovePair(std::string const & move);
-	bool IsValidMove(std::vector<int> const & movePair);
+	MovePair GetMovePair(std::string const & move);
+	bool IsValidMove(MovePair const movePair);
 	int GetPositionFromMove(int const move) const;
+	void CapturePiece(Pieces const color);
+
+	std::vector<MovePair> GetAvailableMoves(Pieces const color, bool captureOnly);
 
 	std::vector<Pieces> m_GameBoard;
 	int m_PlayerCapture;

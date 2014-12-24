@@ -26,5 +26,8 @@
     <ClInclude Include="src\Board.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\MovePair.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -6,6 +6,6 @@
 int main(int argc, const char* argv[])
 {
 	Board game;
-	game.Display();
+	game.BeginGame();
 	system("pause");
 }

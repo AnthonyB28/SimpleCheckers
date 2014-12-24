@@ -44,7 +44,6 @@ Board::Board()
 	m_GameBoard[58] = Pieces::WHITE;
 	m_GameBoard[60] = Pieces::WHITE;
 	m_GameBoard[62] = Pieces::WHITE;
-	IsValidMove(std::vector < int > {22, 19});
 }
 
 Board::~Board()
@@ -54,44 +53,182 @@ Board::~Board()
 
 void Board::BeginGame()
 {
+	Display();
 	while (!m_GameOver)
 	{
 		PlayerTurn();
-		Display();
-		//AITurn();
-		Display();
+		AITurn();
 	}
 }
 
 void Board::PlayerTurn()
 {
 	bool madeMove = false;
+	// Input loop
 	while (!madeMove)
 	{
 		std::string inputMove;
-		std::cout << "Input your white move (from-to format, eg 21-17)";
+		std::cout << "Input your white move (from-to format, eg 21-17)\n";
 		std::cin >> inputMove;
-		std::vector<int> movePair = GetMovePair(inputMove);
+		MovePair movePair = GetMovePair(inputMove);
+
 		// If input is valid, check the validity of the move and if captures are made...
 		if (IsValidMove(movePair))
 		{
 			// TODO move generation should return a list of moves we could just compare against
 			// TODO make sure the player HAS To take captures....
-			m_GameBoard[movePair.at(0)] = Pieces::EMPTY;
+			m_GameBoard[movePair.from] = Pieces::EMPTY;
 			if (m_PlayerCapture != NO_CAPTURE)
 			{
 				m_GameBoard[m_PlayerCapture] = Pieces::EMPTY;
-				--m_RedPieces;
+				CapturePiece(Pieces::RED);
 				m_PlayerCapture = NO_CAPTURE; // Reset flag, TODO too manual & needs improvement
 			}
-			m_GameBoard[movePair.at(1)] = Pieces::WHITE;
+			m_GameBoard[movePair.to] = Pieces::WHITE;
 			// TODO check to make sure player cannot make more jumps, then ask to make more jumps if so
 			madeMove = true;
+			std::cout << "Result of your move: \n";
+			Display();
 		}
 	}
 }
 
-std::vector<int> Board::GetMovePair(std::string const & move)
+void Board::AITurn()
+{
+	if (!m_GameOver)
+	{
+		std::vector<MovePair> movesToMake = GetAvailableMoves(Pieces::RED, false);
+		int randMove = rand() % movesToMake.size();
+		MovePair moveToMake = movesToMake.at(randMove);
+		m_GameBoard[moveToMake.from] = Pieces::EMPTY;
+		if (moveToMake.capture != NO_CAPTURE)
+		{
+			m_GameBoard[moveToMake.capture] = Pieces::EMPTY;
+			CapturePiece(Pieces::WHITE);
+		}
+		m_GameBoard[moveToMake.to] = Pieces::RED;
+		std::cout << "AI Red turn:\n";
+		Display();
+	}
+}
+
+void Board::CapturePiece(Pieces const color)
+{
+	// TODO make notification for color winner
+	if (color == Pieces::RED)
+	{
+		--m_RedPieces;
+		if (m_RedPieces <= 0)
+		{
+			m_GameOver = true;
+		}
+	}
+	else if (color == Pieces::WHITE)
+	{
+		--m_WhitePieces;
+		if (m_WhitePieces <= 0)
+		{
+			m_GameOver = true;
+		}
+	}
+}
+
+std::vector<MovePair> Board::GetAvailableMoves(Pieces const color, bool captureOnly)
+{
+	std::vector<MovePair> moveList;
+	if (color != Pieces::EMPTY)
+	{
+		for (std::vector<Pieces>::const_iterator it = m_GameBoard.cbegin(); it != m_GameBoard.cend(); ++it)
+		{
+			if (*it == color)
+			{
+				int position = it - m_GameBoard.cbegin();
+				int diagUpRight = position - 7;
+				int diagUpLeft = position - 9;
+				int diagDownLeft = position + 7;
+				int diagDownRight = position + 9;
+				if (!captureOnly)
+				{
+					if (position != 7 && position != 23 && position != 39 && position != 55)
+					{
+						if (diagUpRight >= 0 && diagUpRight <= 63
+							&& m_GameBoard.at(diagUpRight) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagUpRight, NO_CAPTURE));
+						}
+						if (diagDownRight >= 0 && diagDownRight <= 63
+							&& m_GameBoard.at(diagDownRight) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagDownRight, NO_CAPTURE));
+						}
+					}
+					if (position != 23 && position != 39 && position != 55)
+					{
+						if (diagUpLeft >= 0 && diagUpLeft <= 63
+							&& m_GameBoard.at(diagUpLeft) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagUpLeft, NO_CAPTURE));
+						}
+						if (diagDownLeft >= 0 && diagDownLeft <= 63 
+							&& m_GameBoard.at(diagDownLeft) == Pieces::EMPTY)
+						{
+							moveList.push_back(MovePair(position, diagDownLeft, NO_CAPTURE));
+						}
+					}
+				}
+
+				// Capture jumps
+				// Jump over the up right diag
+				int diagJumpUpRight = diagUpRight - 7;
+				if (diagJumpUpRight >= 0 && diagJumpUpRight <= 63)
+				{
+					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpUpRight) == Pieces::RED)
+						|| (color == Pieces::RED && m_GameBoard.at(diagJumpUpRight) == Pieces::WHITE))
+					{
+						moveList.push_back(MovePair(position, diagJumpUpRight, diagUpRight));
+					}
+				}
+
+				// Jump over left up diag
+				int diagJumpUpLeft = diagUpLeft - 9;
+				if (diagJumpUpLeft >= 0 && diagJumpUpLeft <= 63)
+				{
+					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpUpLeft) == Pieces::RED)
+						|| (color == Pieces::RED && m_GameBoard.at(diagJumpUpLeft) == Pieces::WHITE))
+					{
+						moveList.push_back(MovePair(position, diagJumpUpLeft, diagUpLeft));
+					}
+				}
+
+				// Jump over the up left diag
+				int diagJumpDownLeft = diagDownLeft + 7;
+				if (diagJumpDownLeft >= 0 && diagJumpDownLeft <= 63)
+				{
+					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpDownLeft) == Pieces::RED)
+						|| (color == Pieces::RED && m_GameBoard.at(diagJumpDownLeft) == Pieces::WHITE))
+					{
+						moveList.push_back(MovePair(position, diagJumpDownLeft, diagDownLeft));
+					}
+				}
+		
+				// Jump over the up left diag
+				int diagJumpDownRight = diagDownRight + 9;
+				if (diagJumpDownRight >= 0 && diagJumpDownRight <= 63)
+				{
+					if ((color == Pieces::WHITE && m_GameBoard.at(diagJumpDownRight) == Pieces::RED)
+						|| (color == Pieces::RED && m_GameBoard.at(diagJumpDownRight) == Pieces::WHITE))
+					{
+						moveList.push_back(MovePair(position, diagJumpDownRight, diagDownRight));
+					}
+				}
+			}
+		}
+	}
+
+	return moveList;
+}
+
+MovePair Board::GetMovePair(std::string const & move)
 {
 	// Convert input syntax to useable one.
 	// Split on '-'
@@ -112,7 +249,7 @@ std::vector<int> Board::GetMovePair(std::string const & move)
 			piecePositionTo >= 1 && piecePositionTo <= 32)
 		{
 			std::cout << "From: " << piecePositionFrom << " To: " << piecePositionTo << "\n";
-			return std::vector<int> { GetPositionFromMove(piecePositionFrom), GetPositionFromMove(piecePositionTo) };
+			return MovePair ( GetPositionFromMove(piecePositionFrom), GetPositionFromMove(piecePositionTo), false );
 		}
 		else
 		{
@@ -121,20 +258,20 @@ std::vector<int> Board::GetMovePair(std::string const & move)
 	}
 	else
 	{
-		std::cout << "Too many arguments, don't use spaces.\n";
+		std::cout << "Invalid input, don't use spaces.\n";
 	}
 
-	return std::vector<int>();
+	return MovePair(-1,-1, false); // TODO make an invalid movepair recognizeable instead of magic nums
 }
 
-bool Board::IsValidMove(std::vector<int> const & movePair)
+bool Board::IsValidMove(MovePair const movePair)
 {
-	if (movePair.size() == 2)
+	if (movePair.from != -1 && movePair.to != -1)
 	{
-		int from = movePair.at(0);
+		int from = movePair.from;
 		if (m_GameBoard.at(from) == Pieces::WHITE)
 		{
-			int to = movePair.at(1);
+			int to = movePair.to;
 
 			// 3 things to check for here....
 			// If the player is making a normal adjacent move
@@ -212,11 +349,12 @@ bool Board::IsValidMove(std::vector<int> const & movePair)
 	return false;
 }
 
-int Board::GetPositionFromMove(int const move) const
+int Board::GetPositionFromMove(int const checkersMove) const
 {
 	// If move is even, then only index off one.
 	// If move is odd, index off two.
-	int inBoard = (move % 2 == 2) ? move * 2 - 1 : move * 2 - 2;
+	int row = (checkersMove * 2 - 1) / 8;
+	int inBoard = ((row & 1) == 1) ? checkersMove * 2 - 2 : checkersMove * 2 - 1;
 	return inBoard;
 }
 
@@ -248,4 +386,5 @@ void Board::Display()
 	std::cout << boardDisplay;
 	std::cout << "Press enter to continue";
 	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	std::cout << "\n";
 }
