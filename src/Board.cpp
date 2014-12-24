@@ -1,3 +1,5 @@
+#define NO_CAPTURE -1
+
 #include "Board.h"
 #include <iostream>
 #include <string>
@@ -7,6 +9,9 @@
 
 Board::Board()
 	: m_GameBoard()
+	, m_PlayerCapture(NO_CAPTURE)
+	, m_RedPieces(12)
+	, m_WhitePieces(12)
 	, m_GameOver(false)
 {
 	for (int i = 0; i < 64; ++i)
@@ -39,6 +44,7 @@ Board::Board()
 	m_GameBoard[58] = Pieces::WHITE;
 	m_GameBoard[60] = Pieces::WHITE;
 	m_GameBoard[62] = Pieces::WHITE;
+	IsValidMove(std::vector < int > {22, 19});
 }
 
 Board::~Board()
@@ -65,14 +71,27 @@ void Board::PlayerTurn()
 		std::string inputMove;
 		std::cout << "Input your white move (from-to format, eg 21-17)";
 		std::cin >> inputMove;
-		if (inputMove.length() > 0 && IsValidMove(inputMove))
+		std::vector<int> movePair = GetMovePair(inputMove);
+		// If input is valid, check the validity of the move and if captures are made...
+		if (IsValidMove(movePair))
 		{
-			
+			// TODO move generation should return a list of moves we could just compare against
+			// TODO make sure the player HAS To take captures....
+			m_GameBoard[movePair.at(0)] = Pieces::EMPTY;
+			if (m_PlayerCapture != NO_CAPTURE)
+			{
+				m_GameBoard[m_PlayerCapture] = Pieces::EMPTY;
+				--m_RedPieces;
+				m_PlayerCapture = NO_CAPTURE; // Reset flag, TODO too manual & needs improvement
+			}
+			m_GameBoard[movePair.at(1)] = Pieces::WHITE;
+			// TODO check to make sure player cannot make more jumps, then ask to make more jumps if so
+			madeMove = true;
 		}
 	}
 }
 
-bool Board::IsValidMove(std::string & const move)
+std::vector<int> Board::GetMovePair(std::string const & move)
 {
 	// Convert input syntax to useable one.
 	// Split on '-'
@@ -93,7 +112,7 @@ bool Board::IsValidMove(std::string & const move)
 			piecePositionTo >= 1 && piecePositionTo <= 32)
 		{
 			std::cout << "From: " << piecePositionFrom << " To: " << piecePositionTo << "\n";
-			return true;
+			return std::vector<int> { GetPositionFromMove(piecePositionFrom), GetPositionFromMove(piecePositionTo) };
 		}
 		else
 		{
@@ -104,7 +123,101 @@ bool Board::IsValidMove(std::string & const move)
 	{
 		std::cout << "Too many arguments, don't use spaces.\n";
 	}
+
+	return std::vector<int>();
+}
+
+bool Board::IsValidMove(std::vector<int> const & movePair)
+{
+	if (movePair.size() == 2)
+	{
+		int from = movePair.at(0);
+		if (m_GameBoard.at(from) == Pieces::WHITE)
+		{
+			int to = movePair.at(1);
+
+			// 3 things to check for here....
+			// If the player is making a normal adjacent move
+			// If the player is capturing a piece
+			// If the player is making a string of jumps.... Maybe discourage this and make it auto?
+
+			int diagUpRight = from - 7;
+			int diagUpLeft = from - 9;
+			int diagDownLeft = from + 7;
+			int diagDownRight = from + 9;
+			if (m_GameBoard.at(to) == Pieces::EMPTY)
+			{
+				// Adjacent move
+				if (to == diagUpRight || to == diagUpLeft || to == diagDownLeft || to == diagDownRight)
+				{
+					if (m_GameBoard.at(to) == Pieces::EMPTY)
+					{
+						std::cout << "Valid move.\n";
+						return true;
+					}
+				}
+
+				// Capture jumps
+				// Jump over the up right diag
+				else if (to == diagUpRight - 7)
+				{
+					if (m_GameBoard.at(diagUpRight) == Pieces::RED)
+					{
+						m_PlayerCapture = diagUpRight;
+						return true;
+					}
+				}
+				// Jump over the up left diag
+				else if (to == diagUpLeft - 9)
+				{
+					if (m_GameBoard.at(diagUpLeft) == Pieces::RED)
+					{
+						m_PlayerCapture = diagUpLeft;
+						return true;
+					}
+				}
+				// Jump over the up left diag
+				else if (to == diagDownLeft + 7)
+				{
+					if (m_GameBoard.at(diagDownLeft) == Pieces::RED)
+					{
+						m_PlayerCapture = diagDownLeft;
+						return true;
+					}
+				}
+				// Jump over the up left diag
+				else if (to == diagDownRight + 9)
+				{
+					if (m_GameBoard.at(diagUpLeft) == Pieces::RED)
+					{
+						m_PlayerCapture = diagUpLeft;
+						return true;
+					}
+				}
+			}
+			else
+			{
+				std::cout << "Not an empty destination.\n";
+			}
+			
+		}
+		else
+		{
+			std::cout << "Not a white piece.\n";
+		}
+	}
+
+	std::cout << "Invalid move. Try again.\n";
+	m_PlayerCapture = NO_CAPTURE;
 	return false;
+}
+
+int Board::GetPositionFromMove(int const move) const
+{
+	// If move is even, then only index off one.
+	// If move is odd, index off two.
+	int inBoard = (move % 2 == 2) ? move * 2 - 1 : move * 2 - 2;
+	return inBoard;
 }
 
 void Board::Display()
