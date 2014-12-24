@@ -24,7 +24,7 @@ private:
 	MovePair GetMovePairFromInput(std::string const & move);
 	int GetPositionFromMove(int const move) const;
 	void CapturePiece(Pieces const color);
-	bool CanAttack(int const position, Pieces const color);
+	bool CanPositionCapture(int const position, Pieces const color);
 	std::vector<MovePair> GetAvailableMoves(Pieces const color, bool captureOnly);
 
 	std::vector<Pieces> m_GameBoard;

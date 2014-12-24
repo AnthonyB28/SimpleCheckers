@@ -58,21 +58,29 @@ void Board::BeginGame()
 		PlayerTurn();
 		AITurn();
 	}
+
+	std::cout << "Game over!\n";
+	
 }
 
 void Board::PlayerTurn()
 {
 	bool madeMove = false;
-	bool multiMove = false;
+	bool multiJump = false;
 	// Input loop
 	while (!madeMove)
 	{
 		std::string playerInput;
 		std::cout << "Input your white move (from-to format, eg 21-17)\n";
 		std::cin >> playerInput;
+
 		// Get valid moves & search them for player input. If not there, invalid move!
 		MovePair inputMovePair = GetMovePairFromInput(playerInput);
-		std::vector<MovePair> movesToMake = GetAvailableMoves(Pieces::WHITE, false);
+
+		// If multijump is true, we're going to only check for chain moves!!
+		// There may be a bug here, player may be able to capture from something else during multi move.
+		std::vector<MovePair> movesToMake = GetAvailableMoves(Pieces::WHITE, multiJump);
+		std::sort(movesToMake.begin(), movesToMake.end());
 		std::vector<MovePair> captureMoves;
 		if (movesToMake.size() != 0)
 		{
@@ -101,11 +109,11 @@ void Board::PlayerTurn()
 						m_GameBoard[it->to] = Pieces::WHITE;
 						std::cout << "Result of your move: \n";
 						Display();
-						if (capture && CanAttack(it->to, Pieces::WHITE))
+						if (capture && CanPositionCapture(it->to, Pieces::WHITE))
 						{
 							// Additional moves available! Continue the loop.
 							std::cout << "You have at least 1 extra jump. Please enter next jump move.... \n";
-							multiMove = true;
+							multiJump = true;
 						}
 						else
 						{
@@ -116,15 +124,69 @@ void Board::PlayerTurn()
 				}
 			}
 		}
+		else
+		{
+			std::cout << "White has no moves to make. Red wins!\n";
+			madeMove = true;
+			m_GameOver = true;
+		}
 
-		if (!madeMove && !multiMove)
+		if (!madeMove && !multiJump)
 		{
 			std::cout << "Invalid move. Please try again.\n";
 		}
 	}
 }
 
-bool Board::CanAttack(int const position, Pieces const color)
+void Board::AITurn()
+{
+	if (!m_GameOver)
+	{
+		bool madeMove = false;
+		bool multiJump = false;
+		while (!madeMove)
+		{
+			// If multijump is true, we're going to only check for chain moves!!
+			// There may be a bug here, player may be able to capture from something else during multi move.
+			std::vector<MovePair> movesToMake = GetAvailableMoves(Pieces::RED, multiJump);
+			if (movesToMake.size() != 0)
+			{
+				std::sort(movesToMake.begin(), movesToMake.end());
+				MovePair moveToMake = movesToMake.at(0);
+				m_GameBoard[moveToMake.from] = Pieces::EMPTY;
+				if (moveToMake.capture != NO_CAPTURE)
+				{
+					m_GameBoard[moveToMake.capture] = Pieces::EMPTY;
+					CapturePiece(Pieces::WHITE);
+				}
+				m_GameBoard[moveToMake.to] = Pieces::RED;
+
+				// Check for double chain and do next move if possible!
+				if (moveToMake.capture != NO_CAPTURE && CanPositionCapture(moveToMake.to, Pieces::RED))
+				{
+					madeMove = false;
+					multiJump = true;
+					std::cout << "Red can double jump.\n";
+				}
+				else
+				{
+					madeMove = true;
+				}
+				std::cout << "AI Red turn:\n";
+				Display();
+			}
+			else
+			{
+				std::cout << "Red has no moves to make. White wins!\n";
+				madeMove = true;
+				m_GameOver = true;
+			}
+		}
+	}
+}
+
+
+bool Board::CanPositionCapture(int const position, Pieces const color)
 {
 	std::vector<MovePair> captureMoves = GetAvailableMoves(color, true);
 	if (captureMoves.size() > 0)
@@ -138,35 +200,8 @@ bool Board::CanAttack(int const position, Pieces const color)
 			}
 		}
 	}
-	
-	return false;
-}
 
-void Board::AITurn()
-{
-	if (!m_GameOver)
-	{
-		std::vector<MovePair> movesToMake = GetAvailableMoves(Pieces::RED, false);
-		if (movesToMake.size() != 0)
-		{
-			std::sort(movesToMake.begin(), movesToMake.end());
-			MovePair moveToMake = movesToMake.at(0);
-			m_GameBoard[moveToMake.from] = Pieces::EMPTY;
-			if (moveToMake.capture != NO_CAPTURE)
-			{
-				m_GameBoard[moveToMake.capture] = Pieces::EMPTY;
-				CapturePiece(Pieces::WHITE);
-			}
-			m_GameBoard[moveToMake.to] = Pieces::RED;
-			std::cout << "AI Red turn:\n";
-			Display();
-		}
-		else
-		{
-			std::cout << "Game over";
-			m_GameOver = true;
-		}
-	}
+	return false;
 }
 
 void Board::CapturePiece(Pieces const color)
@@ -178,6 +213,7 @@ void Board::CapturePiece(Pieces const color)
 		if (m_RedPieces <= 0)
 		{
 			m_GameOver = true;
+			std::cout << "White wins!\n";
 		}
 	}
 	else if (color == Pieces::WHITE)
@@ -186,6 +222,7 @@ void Board::CapturePiece(Pieces const color)
 		if (m_WhitePieces <= 0)
 		{
 			m_GameOver = true;
+			std::cout << "Red wins!\n";
 		}
 	}
 }
